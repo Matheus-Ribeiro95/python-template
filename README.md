@@ -2,7 +2,7 @@
 
 Código do template em Python.
 
-    git clone https://github.com/Matheus-Ribeiro95/go-template.git
+    git clone https://github.com/Matheus-Ribeiro95/python-template.git
 
 Tenha em mente que executando o código dessa forma, o arquivo irá chamar a função `panic`  por não estar conectado à database.
 
