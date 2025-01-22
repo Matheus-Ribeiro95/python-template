@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.2.0/css/dataTables.dataTables.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.datatables.net/2.2.0/js/dataTables.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bem-vindo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            width: 80%;
+            text-align: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            padding: 8px;
+        }
+
+        button.mr-2 {
+            margin-right: 12px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <button onclick="CreateButton()">Create User</button>
+    <table id="table"></table>
+</div>
+<script>
+    let DataTable;
+
+    function CreateButton() {
+        const name = prompt("Name of the new user?");
+
+        if (!!name.trim()) {
+            $.ajax({
+                method: "POST",
+                url: "http://localhost:8000/api/insert",
+                contentType: "application/json",
+                dataType: 'json',
+                data: JSON.stringify({ name: name })
+            })
+                .done(data => {
+                    console.log(data);
+                })
+        }
+    }
+
+    function EditButton(el) {
+        const name = prompt("Name of the new user?");
+
+        if (!!name.trim()) {
+            const userId = el.dataset.id;
+            $.ajax({
+                method: "POST",
+                url: "http://localhost:8000/api/update",
+                contentType: "application/json",
+                dataType: 'json',
+                data: JSON.stringify({
+                    id: userId,
+                    name
+                })
+            })
+                .done(data => {
+                    console.log(data);
+                })
+        }
+    }
+
+    function DeleteButton(el) {
+        const userId = el.dataset.id;
+
+        if (confirm("Delete user?")) {
+            $.ajax({
+                method: "POST",
+                url: "http://localhost:8000/api/delete",
+                contentType: "application/json",
+                dataType: 'json',
+                data: JSON.stringify({ id: userId })
+            })
+                .done(data => {
+                    console.log(data);
+                })
+        }
+    }
+
+    fetch("http://localhost:8000/api/getAll")
+        .then(response => response.json())
+        .then(data => console.log('fetch', data));
+
+    $.ajax({
+        method: "GET",
+        url: "http://localhost:8000/api/getAll"
+    })
+        .done(data => {
+            console.log('jquery', data);
+
+            DataTable = $("table").DataTable({
+                data: data.data,
+                columns: [
+                    { title: "Name", data: "name" },
+                    {
+                        title: "Action",
+                        render: function (data, type, row) {
+                            return "<button onclick='EditButton(this)' class='mr-2' data-id='" + row.id + "'>Edit</button><button onclick='DeleteButton(this)' data-id='" + row.id + "'>Delete</button>"
+                        }
+                    }
+                ]
+            })
+        });
+
+    $(document).ready(function () {
+        if (window["WebSocket"]) {
+            const conn = new WebSocket("ws://" + document.location.host + "/ws");
+
+            conn.onclose = function (evt) {
+                console.log("WS onclose", evt);
+            };
+
+            conn.onmessage = function (evt) {
+                const message = JSON.parse(evt.data);
+
+                const data = JSON.parse(message.data);
+
+                switch (message.action) {
+                    case "addUser":
+                        DataTable.row.add({
+                            id: data.id,
+                            name: data.name
+                        }).draw();
+
+                        break;
+
+                    case "deleteUser":
+                        DataTable.rows().every(function (index) {
+                            const row = DataTable.row(index);
+                            if (row.data().id === data.id) row.remove().draw();
+                        });
+
+                        break;
+
+                    case "updateUser":
+                        DataTable.rows().every(function (index) {
+                            const row = DataTable.row(index);
+                            if (row.data().id === data.id) row.data({
+                                id: data.id,
+                                name: data.name
+                            }).draw();
+                        });
+
+                        break;
+
+                    default:
+                        break;
+                }
+            };
+
+            conn.onopen = function (evt) {
+                return;
+
+                const object = JSON.stringify({
+                    id: "123"
+                })
+
+                conn.send(object);
+            }
+
+        } else {
+            alert("Your browser does not support WebSockets.");
+        }
+    })
+</script>
+</body>
+</html>
